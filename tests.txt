@@ -54,8 +54,6 @@ Add, s7, o5, R
 Query, s3, o5, R
 
 
-
-
 # Test circular takes (uses s10..., o10...)
 Add, s10, s12, T
 Add, s12, s14, T
