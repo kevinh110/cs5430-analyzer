@@ -2,68 +2,118 @@ import sys
 
 input_file, output_file = sys.argv[1], sys.argv[2]
 
+# Indexes
+R = 0
+W = 1
+T = 2
+
 state = {}  # subject => [bit, bit, {}]
-#                           R   W   T
 obj_to_bit = {}
 
 
+def augment(seen, subject):
+    if subject not in seen:
+        seen.add(subject)
+        canTake = state[subject][2]
+        for s in canTake:
+            augment(seen, s)
+            state[subject][0] |= state[s][0]
+            state[subject][1] |= state[s][1]
+
+
+def search(seen, subj, obj):
+    if subj not in seen:
+        seen.add(subj)
+        if obj in state[subj][T]:
+            return True
+        for s in state[subj][T]:
+            if search(seen, s, obj):
+                return True
+    return False
+
+
 def parse_line(line):
+
     line_arr = line.split(',')
+    if len(line_arr) != 4:
+        return line
+
     command = line_arr[0].strip()
     subj = line_arr[1].strip()
     obj = line_arr[2].strip()
     priv = line_arr[3].strip()
 
-    if subj not in obj_to_bit:
+    if error_check(command, subj, obj, priv):
+
+        if priv == "T" and not obj in state:
+            state[obj] = [0, 0, set()]
+        if priv != "T" and not obj in obj_to_bit:
+            obj_to_bit[obj] = len(obj_to_bit)
+        if not subj in state:
+            state[subj] = [0, 0, set()]
+
         if command == "Add":
             add_com(subj, obj, priv)
+            return line
         elif command == "Query":
-            query_com
+            if query_com(subj, obj, priv):
+                return line.strip() + " YES\n"
+            else:
+                return line.strip() + " NO\n"
     else:
-        print("comment")
+        return line
+
+
+def error_check(com, subj, obj, priv):
+    if priv == "T":
+        if obj in obj_to_bit or subj in obj_to_bit:
+            return False
+    else:
+        if subj in obj_to_bit or obj in state:
+            return False
+    return True
 
 
 def add_com(subj, obj, priv):
-    if not obj in obj_to_bit:
-        obj_to_bit[obj] = len(obj_to_bit)
+    # Add new subjects/objects to data structures
+    # if priv == "T" and not obj in state:
+    #     state[obj] = [0, 0, set()]
+    # if priv != "T" and not obj in obj_to_bit:
+    #     obj_to_bit[obj] = len(obj_to_bit)
+    # if not subj in state:
+    #     state[subj] = [0, 0, set()]
 
-    if not subj in state:
-        state[subj] = [0, 0, {}]
-
-    bit_shift = obj_to_bit[obj]
     if priv == "R":
-        state[subj][0] |= 1 << bit_shift
+        bit_shift = obj_to_bit[obj]
+        state[subj][R] |= 1 << bit_shift
     elif priv == "W":
-        state[subj][1] |= 1 << bit_shift
+        bit_shift = obj_to_bit[obj]
+        state[subj][W] |= 1 << bit_shift
     elif priv == "T":
-        state[obj][2].add(sub)
+        state[subj][T].add(obj)
 
 
 def query_com(subj, obj, priv):
-    bit_string = 1 << obj_to_bit[obj]
-    if priv == "R":
-        stack = []
-        stack.append(subj)
-        while(len(stack) > 0):
-            subject = stack.pop()
-            perms = state[subject][0]
-            if bit_string & perms == 1:
-                return True
 
+    p = R if priv == "R" else W if priv == "W" else T
 
-# def query_dfs(subj):
-#     for subj2 in state[subj][2]:
-#         subj2 = state[subj][2].pop()
-#         query_dfs(subj2)
-#         state[subj][0] |= state[subj2][0]
-#         state[subj][1] |= state[subj2][1]
+    if p == R or p == W:
+        bit_string = 1 << obj_to_bit[obj]
+        if state[subj][p] & bit_string:
+            return True
+        augment(set(), subj)
+        return state[subj][p] & bit_string
+    else:
+        return search(set(), subj, obj)
 
 
 def parse_input():
     with open(input_file) as file:
         f = open(output_file, 'w')
         for line in file:
-            parse_line(line)
+            out = parse_line(line)
+            f.write(out)
+        f.close()
 
 
 if __name__ == "__main__":
